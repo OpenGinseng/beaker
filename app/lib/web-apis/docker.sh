@@ -1,7 +1,5 @@
 #!/usr/bin/env bash.origin.script
 
-echo "ARGS: $@"
-
 BO_parse_args "ARGS" "$@"
 
 tag="beaker/$(basename $(pwd))"

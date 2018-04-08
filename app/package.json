@@ -39,6 +39,7 @@
     "from2-string": "^1.1.0",
     "fs-jetpack": "^0.9.0",
     "function-queue": "0.0.12",
+    "get-port": "^3.2.0",
     "hypercore": "^6.12.5",
     "hypercore-protocol": "^6.6.2",
     "hyperdrive": "^9.12.3",
@@ -82,6 +83,7 @@
     "through2": "^2.0.1",
     "unused-filename": "^0.1.0",
     "utp-native": "^1.7.0",
+    "yargs": "^11.0.0",
     "yo-yo": "^1.4.0",
     "zerr": "^1.0.4"
   },

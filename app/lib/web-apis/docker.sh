@@ -1,19 +1,62 @@
-#!/usr/bin/env bash.origin.script
+#!/usr/bin/env bash
 
-BO_parse_args "ARGS" "$@"
+parsedArgs=$(node --eval '
+    const argv = require("/dl/spaces/o/io.ginseng/beaker/app/node_modules/yargs").argv
+    process.stdout.write("action=\"" + argv.$0 + "\"\n");
+' "$@")
+eval "$parsedArgs"
 
-tag="beaker/$(basename $(pwd))"
-containerPath="${ARGS_OPT_path}"
-sitePath="$(pwd)"
-runCommand="${ARGS_OPT_command}"
+if [ "${action}" == "run" ]; then
 
-unset ${!DOCKER*}
+    parsedArgs=$(node --eval '
+        const argv = require("/dl/spaces/o/io.ginseng/beaker/app/node_modules/yargs").argv
+        process.stdout.write("containerPath=\"" + argv.path + "\"\n");
+        process.stdout.write("runCommand=" + argv.command + "\n");
+        process.stdout.write("sitePath=\"" + process.cwd() + "\"\n");
 
-docker build \
-    -t "${tag}" \
-    "${containerPath}"
+        var tag = "beaker/" + require("path").basename(process.cwd());
+        process.stdout.write("tag=\"" + tag + "\"\n");
+        process.stdout.write("containerName=\"docker_" + tag.replace(/\//g, "_") + "\"\n");
 
-docker run \
-    --mount type=bind,source=${sitePath},destination=/site,consistency=cached \
-    "${tag}" \
-    ${runCommand}
+        require("/dl/spaces/o/io.ginseng/beaker/node_modules/get-port")().then(function (port) {
+            process.stdout.write("port=\"" + port + "\"\n");
+        });
+    ' "$@")
+    eval "$parsedArgs"
+
+    docker build \
+        -t "${tag}" \
+        "${containerPath}"
+
+    echo "[docker][set] {\"HTTP_PORT\":${port}}"
+
+    echo "[docker] Running container '${containerName}' with tag '${tag}''"
+
+    docker run \
+        --mount type=bind,source=${sitePath},destination=/site,consistency=cached \
+        --name "${containerName}" \
+        -p "${port}:80" \
+        "${tag}" \
+        ${runCommand}
+
+elif [ "${action}" == "stop" ]; then
+
+    parsedArgs=$(node --eval '
+        const argv = require("/dl/spaces/o/io.ginseng/beaker/app/node_modules/yargs").argv
+
+        var tag = "beaker/" + require("path").basename(process.cwd());
+        process.stdout.write("tag=\"" + tag + "\"\n");
+        process.stdout.write("containerName=\"docker_" + tag.replace(/\//g, "_") + "\"\n");
+    ' "$@")
+    eval "$parsedArgs"
+
+    containerId=$(docker ps -aqf "name=${containerName}")
+
+    echo "[docker] Stopping container '${containerName}' with tag '${tag}'"
+
+    docker stop "${containerId}"
+    docker rm "${containerId}"
+
+    echo "[docker] Stopped container '${containerName}' with tag '${tag}'"
+
+fi

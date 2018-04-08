@@ -14,7 +14,7 @@ if [ "${action}" == "run" ]; then
         process.stdout.write("runCommand=" + argv.command + "\n");
         process.stdout.write("sitePath=\"" + process.cwd() + "\"\n");
 
-        var tag = "beaker/" + require("path").basename(process.cwd());
+        var tag = "beaker/" + require("path").basename(process.cwd()) + "/" + argv.instance;
         process.stdout.write("tag=\"" + tag + "\"\n");
         process.stdout.write("containerName=\"docker_" + tag.replace(/\//g, "_") + "\"\n");
 
@@ -44,7 +44,7 @@ elif [ "${action}" == "stop" ]; then
     parsedArgs=$(node --eval '
         const argv = require("/dl/spaces/o/io.ginseng/beaker/app/node_modules/yargs").argv
 
-        var tag = "beaker/" + require("path").basename(process.cwd());
+        var tag = "beaker/" + require("path").basename(process.cwd()) + "/" + argv.instance;
         process.stdout.write("tag=\"" + tag + "\"\n");
         process.stdout.write("containerName=\"docker_" + tag.replace(/\//g, "_") + "\"\n");
     ' "$@")

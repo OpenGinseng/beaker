@@ -5,7 +5,7 @@ const SPAWN = require("child_process").spawn;
 import {EventTarget, Event, fromEventStream} from './event-target'
 
 class Docker extends EventTarget {
-  constructor (path, opts = {}) {
+  constructor (path, instanceName, opts = {}) {
     super()
     var errStack = (new Error()).stack
     try {
@@ -14,6 +14,7 @@ class Docker extends EventTarget {
         throw new Error("Path to docker container must start with '/'!");
       }
       this.path = path
+      this.instanceName = instanceName;
 
       this.opts = opts;
 
@@ -58,6 +59,7 @@ class Docker extends EventTarget {
     
       self.proc = SPAWN(self.dockerControlPath, [
           "run",
+          "--instance", self.instanceName,
           "--path", self.path.replace(/^\//, ""),
           "--command", '"' + command.replace(/"/g, '\\"') + '"'
       ], {
@@ -125,7 +127,8 @@ class Docker extends EventTarget {
       }
 
       var proc = SPAWN(self.dockerControlPath, [
-          "stop"
+          "stop",
+          "--instance", self.instanceName
       ], {
         cwd: self.siteBasePath,
         stdio: [

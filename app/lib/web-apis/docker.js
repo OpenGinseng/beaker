@@ -1,168 +1,93 @@
 
-const PATH = require("path");
-const SPAWN = require("child_process").spawn;
+import rpc from 'pauls-electron-rpc'
+import errors from 'beaker-error-constants'
+import dockerManifest from '../api-manifests/external/docker'
+import {EventEmitter} from 'events'
 
-import {EventTarget, Event, fromEventStream} from './event-target'
+const ipcRenderer = require('electron').ipcRenderer;
 
-class Docker extends EventTarget {
+
+
+var workspaceContext = new Promise(function (resolve, reject) {
+  setTimeout(function () {
+    workspaceContext._resolve = resolve;
+  }, 0);
+});
+
+ipcRenderer.on("plugins:workspace-context", (event, message) => {
+  if (workspaceContext._resolve) {
+    workspaceContext._resolve(message);
+  }
+  workspaceContext = message;
+});
+
+async function getWorkspaceContext () {
+  if (workspaceContext.then) {
+    return workspaceContext;
+  }
+  return Promise.resolve(workspaceContext);
+}
+
+
+
+// create the rpc api
+const dockerRPC = rpc.importAPI('docker', dockerManifest, { timeout: false, errors })
+
+export default class Docker extends EventEmitter {
+
   constructor (path, instanceName, opts = {}) {
-    super()
+    super();
+    var self = this;
+    self.context = {
+      path: path,
+      instanceName: instanceName,
+      opts: opts
+    };
+
+    var eventStream = dockerRPC.getEventStream();
+    eventStream.on("data", function (message) {
+
+        console.log("[docker event]", message[0], message[1]);
+
+        self.emit(message[0], message[1]);
+
+        /*
+        if (message[0] === "present") {
+        if (message[0] === "started") {
+        if (message[0] === "stopped") {
+        if (message[0] === "destroyed") {
+        if (message[0] === "fail") {
+        */
+    });
+
+    (async function () {
+      var workspaceContext = await getWorkspaceContext();
+      dockerRPC.notifyDockerInstance(workspaceContext);
+    })().catch(console.error);
+  }
+
+  async run (command) {
     var errStack = (new Error()).stack
     try {
-
-      if (!/^\//.test(path)) {
-        throw new Error("Path to docker container must start with '/'!");
-      }
-      this.path = path
-      this.instanceName = instanceName;
-
-      this.opts = opts;
-
-      this.proc = null;
-      // TODO: Cache proc for given folder on browser so it persists across pages
-      // TODO: Stop proc when leaving website
-
-      // TODO: Derive path to current 'site' dynamically
-      this.siteBasePath = "/dl/spaces/o/io.ginseng/beaker.sites/test";
-
-      // TODO: Derive path to sibling control file at './docker.sh' dynamically
-      this.dockerControlPath = "/dl/spaces/o/io.ginseng/beaker/app/lib/web-apis/docker.sh"
-      
+      var workspaceContext = await getWorkspaceContext();
+      var response = await dockerRPC.run(workspaceContext, this.context, command)
+      return response
     } catch (e) {
       throwWithFixedStack(e, errStack)
     }
   }
-
-  run (command) {
+  async stop () {
     var errStack = (new Error()).stack
-    var self = this;
     try {
-
-      if (self.proc) {
-
-        if (self.opts.debug) {
-          console.log("[docker][run] Skipping new run and returning existing instance for:", self.path);
-        }
-
-        setTimeout(function () {
-          Object.keys(self.proc.docker).forEach(function (name) {
-            self.proc.emit("docker." + name, self.proc.docker[name]);
-          });
-        }, 0);
-
-        return self.proc;
-      }
-
-      if (self.opts.debug) {
-        console.log("[docker] Starting process for:", self.path);
-      }
-    
-      self.proc = SPAWN(self.dockerControlPath, [
-          "run",
-          "--instance", self.instanceName,
-          "--path", self.path.replace(/^\//, ""),
-          "--command", '"' + command.replace(/"/g, '\\"') + '"'
-      ], {
-        cwd: self.siteBasePath,
-        stdio: [
-            'ignore',
-            'pipe',
-            'pipe'
-        ]
-        // TODO: Set 'env.DEBUG' based on 'self.opts.debug'
-      });
-      self.proc.on("error", function (err) {
-        throw err;
-      });
-      self.proc.on("close", function (code) {
-        if (self.opts.debug) {
-          console.log("[docker][run] Process ended with code '" + code + "' for:", self.path);
-        }
-        Object.keys(self.proc.docker).forEach(function (name) {
-          self.proc.docker[name] = undefined;
-        });
-        self.proc.emit("docker", null);
-        self.proc = null;
-      });
-
-      self.proc.docker = {};
-      var m;
-      self.proc.stdout.on("data", function (chunk) {
-        m = chunk.toString().match(/\[docker\]\[set\] (.+)\n/);
-        if (m) {
-          try {
-            m = JSON.parse(m[1]);
-          } catch (err) {
-            console.error("Error parsing JSON:", m[1]);
-          }
-          Object.keys(m).forEach(function (name) {
-            self.proc.docker[name] = m[name];
-            self.proc.emit("docker." + name, self.proc.docker[name]);
-          });
-        }
-      });
-
-      // TODO: How can I access 'process.env.NODE_ENV' when 'process' is not available in this context?
-      if (self.opts.debug) {
-        self.proc.stdout.on("data", function (chunk) {
-          console.log("[docker][run][stdout]", chunk.toString());
-        });
-        self.proc.stderr.on("data", function (chunk) {
-          console.error("[docker][run][stderr]", chunk.toString());
-        });
-      }
-
-      return self.proc;
-    } catch (e) {
-      throwWithFixedStack(e, errStack)
-    }
-  }
-
-  stop () {
-    var errStack = (new Error()).stack
-    var self = this;
-    try {
-      if (!self.proc) {
-        throw new Error("Process is not running.");
-      }
-
-      var proc = SPAWN(self.dockerControlPath, [
-          "stop",
-          "--instance", self.instanceName
-      ], {
-        cwd: self.siteBasePath,
-        stdio: [
-            'ignore',
-            'pipe',
-            'pipe'
-        ]
-        // TODO: Set 'env.DEBUG' based on 'self.opts.debug'
-      });
-      proc.on("error", function (err) {
-        throw err;
-      });
-
-      // TODO: How can I access 'process.env.NODE_ENV' when 'process' is not available in this context?
-      if (self.opts.debug) {
-        proc.stdout.on("data", function (chunk) {
-          console.log("[docker][stop][stdout]", chunk.toString());
-        });
-        proc.stderr.on("data", function (chunk) {
-          console.error("[docker][stop][stderr]", chunk.toString());
-        });
-      }
-
+      var workspaceContext = await getWorkspaceContext();
+      var response = await dockerRPC.stop(workspaceContext, this.context)
+      this.emit("stopped");
+      return response
     } catch (e) {
       throwWithFixedStack(e, errStack)
     }
   }
 }
-
-export default Docker
-
-
-// internal methods
-// =
 
 function throwWithFixedStack (e, errStack) {
   e = e || new Error()

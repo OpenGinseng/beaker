@@ -17,6 +17,7 @@ import {findWordBoundary} from 'pauls-word-boundary'
 import renderNavArrowIcon from './icon/nav-arrow'
 import renderRefreshIcon from './icon/refresh'
 import renderCloseIcon from './icon/close'
+import plugins from '../../shell-window/plugins'
 
 const KEYCODE_DOWN = 40
 const KEYCODE_UP = 38
@@ -142,6 +143,8 @@ export function updateLocation (page) {
       addrEl.select() // if was focused, then select what we put in
     }
   }
+
+//  plugins.emit("workspace-url-selected", page)
 }
 
 export function bookmarkAndOpenMenu () {
@@ -358,6 +361,10 @@ function render (id, page) {
       value=${addrValue} />
   `
 
+  var toolbarActions = yo`
+      ${plugins.getCode('navbar-toolbar-input-group', yo)}
+  `
+  
   // a prettified rendering of the main URL input
   var locationPrettyView = renderPrettyLocation(addrValue, isAddrElFocused, gotInsecureResponse, siteLoadError)
 
@@ -381,6 +388,7 @@ function render (id, page) {
           ${locationPrettyView}
           ${locationInput}
         </div>
+        ${toolbarActions}
         ${inpageFinder}
         ${zoomBtn}
         ${!isLocationHighlighted ? [

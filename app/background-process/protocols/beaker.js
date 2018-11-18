@@ -313,6 +313,11 @@ async function beakerProtocol (request, respond) {
     return cb(200, 'OK', 'application/javascript; charset=utf-8', path.join(__dirname, 'builtin-pages/build/select-archive-modal.build.js'))
   }
 
+  // plugins
+  if (/^beaker:\/\/plugins\//.test(requestUrl)) {
+    return cb(200, 'OK', 'application/javascript; charset=utf-8', path.join(__dirname, 'plugins/' + requestUrl.replace(/^beaker:\/\/plugins\//, "")))
+  }
+
   // debugging
   if (requestUrl === 'beaker://internal-archives/') {
     return cb(200, 'OK', 'text/html; charset=utf-8', archivesDebugPage)

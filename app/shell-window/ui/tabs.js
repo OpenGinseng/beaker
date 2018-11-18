@@ -5,6 +5,7 @@ import * as pages from '../pages'
 import * as navbar from './navbar'
 import {remote} from 'electron'
 import {debounce} from '../../lib/functions'
+import plugins from '../../shell-window/plugins'
 
 // constants
 // =
@@ -167,11 +168,13 @@ function repositionTabs (e) {
 function onAddTab (page) {
   tabsContainerEl.insertBefore(drawTab(page), tabsContainerEl.querySelector('.chrome-tab-add-btn'))
   repositionTabs()
+  plugins.emit("focused-workspace", page)
 }
 
 function onRemoveTab (page) {
   getTabEl(page, tabEl => tabEl.parentNode.removeChild(tabEl))
   repositionTabs()
+  plugins.emit("removed-workspace", page)
 }
 
 function onUpdateTab (page) {
@@ -196,6 +199,8 @@ function onSetActive (page) {
 
     // recalculate tab styles
     repositionTabs()
+
+    plugins.emit("focused-workspace", page)
   })
 }
 

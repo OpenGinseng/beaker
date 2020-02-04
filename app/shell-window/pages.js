@@ -15,6 +15,7 @@ import {urlsToData} from '../lib/fg/img'
 import {throttle} from '../lib/functions'
 import errorPage from '../lib/error-page'
 import addAsyncAlternatives from './webview-async'
+import plugins from '../shell-window/plugins'
 
 // constants
 // =
@@ -698,7 +699,7 @@ function onDidStopLoading (e) {
         .then(info => {
           page.siteInfo = info
           navbar.update(page)
-          console.log('workspace site info', info)
+          plugins.emit("workspace-url-loaded", page)
         })
     }
     if (protocol !== 'beaker:') {

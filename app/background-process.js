@@ -1,3 +1,4 @@
+
 Error.stackTraceLimit = Infinity
 import setupDebugLogger from './background-process/debug-logger'
 
@@ -34,6 +35,11 @@ import * as workspaceProtocol from './background-process/protocols/workspace'
 
 import * as testDriver from './background-process/test-driver'
 import * as openURL from './background-process/open-url'
+
+
+if (process.env.DOCKER_CLI_APP) {
+  require("./background-process/web-apis/docker.cli.app/index.js");
+} else {
 
 // read config from env vars
 setupDebugLogger()
@@ -122,4 +128,6 @@ function handleArgv (argv) {
       openURL.open(url)
     }
   }
+}
+
 }
